@@ -1,0 +1,410 @@
+<!doctype html>
+<html>
+<head>
+  <style>
+    .grid {
+      background-color: #EEE;
+      width: 1000px;
+      height: 1000px;
+      position:absolute;
+    }
+    #draggable {
+      position: absolute;
+      z-index: 1000;
+      display: none;
+    }
+    #dropPoint {
+      position: absolute;
+      z-index: 999;
+      display: none;
+      background-color: green;
+    }
+    .grid-item {
+      background-color: #99ff99;
+      position:absolute;
+    }
+  </style>
+  <style id="path-styles"></style>
+  <script type="text/javascript">
+    var across = 10;
+    var size = 100;
+    var gridTop = 140;
+    var gridLeft = 8;
+    var grid = null;
+
+    var items = {
+      'vertical': {
+        paths: 1,
+        top: 1,
+        bottom: 1
+      },
+      'horizontal': {
+        paths: 1,
+        left: 1,
+        bottom: 1
+      },
+      'cross': {
+        paths: 2,
+        top: 1,
+        right: 2,
+        bottom: 1,
+        left: 2
+      },
+      'upper-left': {
+        paths: 1,
+        top: 1,
+        left: 1
+      },
+      'upper-right': {
+        paths: 1,
+        top: 1,
+        right: 1
+      },
+      'lower-right': {
+        paths: 1,
+        bottom: 1,
+        right: 1
+      },
+      'lower-left': {
+        paths: 1,
+        bottom: 1,
+        left: 1
+      },
+      'ul-lr': {
+        paths: 2,
+        top: 1,
+        right: 2,
+        bottom: 2,
+        left: 1
+      },
+      'ur-ll': {
+        paths: 2,
+        top: 1,
+        right: 1,
+        bottom: 2,
+        left: 1
+      },
+      'none': {
+        paths: 0,
+
+      }
+    };
+    var gridData = [];
+
+    function clearNode(node) {
+      while(node.firstChild) node.removeChild(node.firstChild);
+    }
+
+    function parseMenu(node) {
+      if (node.localName == 'svg') {
+        items[node.getAttribute('class')].node = node;
+        return;
+      }
+      for (var n = node.firstChild; n; n = n.nextSibling) {
+        parseMenu(n);
+      }
+    }
+
+    function setupHandler(item, draggable, dropPoint) {
+      // console.log('adding handler', item);
+      item.onmousedown = function(e) {
+        var s = item.cloneNode(true);
+        clearNode(draggable);
+        draggable.appendChild(s);
+        draggable.style = "display:block;left:" + (e.pageX - 0.5*size) + "px;top:" + (e.pageY-0.5*size) + "px;";
+        draggable.onmousemove = handleDraggableMove;
+        draggable.onmouseup = function(e) {
+          draggable.onmousemove = null;
+          draggable.style = "display:none;";
+          dropPoint.style = "display:none;";
+
+          var gx = Math.floor((e.pageX - gridLeft) / size);
+          var gy = Math.floor((e.pageY - gridTop) / size);
+
+          console.log('gx,gy', gx, gy);
+
+          if (gx >= 0 && gx < across && gy >= 0 && gy < across) {
+            console.log('dropping');
+            var t = item.cloneNode(true);
+            var div = gridData[gx][gy];
+            if(div) {
+              clearNode(div);
+            } else {
+              div = document.createElement('div');
+              div.style = "display:block;width:" + size + "px;height:" + size + "px;left:" + (gx*size) + "px;top:" + (gy*size) + "px;";
+              div.className = "grid-item grid-item-"+gx+"-"+gy;
+              gridData[gx][gy] = div;
+              grid.appendChild(div);
+            }
+            div.appendChild(t);
+
+            gridCount();
+          }
+
+          return false;
+        };
+        return false;
+      }
+    }
+
+    function extractLoopData() {
+      var loops = [];
+      for(var i = 0; i < across; i++) {
+        loops.push([]);
+        for(var j = 0; j < across; j++) {
+          var paths = 0;
+          var top, right, bottom, left;
+          if (gridData[i][j]) {
+            var css = gridData[i][j].firstChild.getAttribute('class');
+            paths = items[css].paths;
+            top = items[css].top;
+            right = items[css].right;
+            bottom = items[css].bottom;
+            left = items[css].left;
+          }
+          var o = {
+            paths: new Array(paths),
+            top: top,
+            right: right,
+            bottom: bottom,
+            left: left
+          };
+
+          loops[i].push(o);
+        }
+      }
+      return loops;
+    }
+
+    function gridCount() {
+      var loops = extractLoopData();
+      var paths = [];
+      var classes = {};
+      var classMap = {};
+
+      var before = null;
+      for(var i = 0; i < across; i++) {
+        var above = null;
+        for(var j = 0; j < across; j++) {
+          if (i > 0) {
+            before = loops[i-1][j];
+          } else {
+            before = null;
+          }
+          var l = loops[i][j];
+          if (l.paths.length == 0) continue;
+
+          for(var k = 0; k < l.paths.length; k++) {
+            var p = paths.length;
+            if (l.left == k + 1) {
+              l.left_path = p;
+            }
+            if (l.top == k + 1) {
+              l.top_path = p;
+            }
+            if (l.right == k + 1) {
+              l.right_path = p;
+            }
+            if (l.bottom == k + 1) {
+              l.bottom_path = p;
+            }
+            paths.push({id: p, x: i, y: j, p: k});
+            classes[p] = {};
+            classes[p][p] = true;
+            classMap[p] = p;
+          }
+          if (before && typeof before.right_path == 'number' && typeof l.left_path == 'number') {
+            // rel[l.left_path] = before.right_path;
+            classes[before.right_path][l.left_path] = true;
+          }
+          if (above && typeof above.bottom_path == 'number' && typeof l.top_path == 'number') {
+            // rel[l.top_path] = above.bottom_path;
+            classes[above.bottom_path][l.top_path] = true;
+          }
+          above = l;
+        }
+      }
+
+      keys = Object.keys(classes).sort();
+
+      console.log(classMap);
+
+      for(var i = 0; i < keys.length; i++) {
+        var c = classes[keys[i]];
+        if (!c) continue;
+
+        var todo = Object.keys(c);
+        // console.log(members);
+        for(var j = 0; j < todo.length; j++) {
+          if (todo[j] == keys[i]) continue;
+          if (classMap[todo[j]] != keys[i]) {
+            if (classMap[todo[j]] != todo[j]) {
+              c[classMap[todo[j]]] = true;
+              todo.push(classMap[todo[j]]);
+            }
+            classMap[todo[j]] = Number(keys[i]);
+          }
+          var c2 = classes[todo[j]];
+          if (!c2) continue;
+          var c2keys = Object.keys(c2);
+          c2keys.forEach(c2key => {
+            if (!c[c2key]) {
+              c[c2key] = true;
+              todo.push(c2key);
+            }
+          });
+          delete classes[todo[j]];
+        }
+      }
+
+
+      console.log('paths', paths);
+      // console.log('rel', rel);
+      console.log('classes', classes);
+      console.log('classMap', classMap);
+
+      var st = "";
+      var colors = Object.keys(classes).reduce((s, k) => {
+        var r = Math.floor(Math.random() * 256);
+        var g = Math.floor(Math.random() * 256);
+        var b = Math.floor(Math.random() * 256);
+        s[k] = 'rgb('+r+','+g+','+b+')';
+        return s;
+      }, {});
+
+      console.log(colors);
+
+      paths.forEach( (p, i) => {
+        st += `
+          .grid-item-${p.x}-${p.y} path:nth-of-type(${p.p+1}) {
+            fill: ${colors[classMap[i]]}
+          }`;
+      });
+      console.log(st);
+      var pathStyles = document.getElementById('path-styles');
+      clearNode(pathStyles);
+      pathStyles.appendChild(document.createTextNode(st));
+    }
+
+    function handleDraggableMove(e) {
+      draggable.style = "display:block;left:" + (e.pageX - 0.5*size) + "px;top:" + (e.pageY-0.5*size) + "px;";
+      var gx = Math.floor((e.pageX - gridLeft) / size);
+      var gy = Math.floor((e.pageY - gridTop) / size);
+
+      if (gx < 0 || gx >= across || gy < 0 || gy > across) {
+        dropPoint.style = "display:none;";
+      } else {
+        dropPoint.style = "width:"+size+"px;height:"+size+"px;display:block;left:"+(gx*100)+"px;top:"+(gy*100)+"px";
+      }
+
+      return false;
+    }
+
+    function load() {
+      parseMenu(document.getElementById("menu"));
+      gridData = [];
+      for(var i = 0; i < across; i++) {
+        gridData.push([]);
+        for(var j = 0; j < across; j++) {
+          gridData[i].push(null);
+        }
+      }
+
+      var draggable = document.getElementById("draggable");
+      var dropPoint = document.getElementById("dropPoint");
+      grid = document.getElementById("grid");
+      Object.values(items).forEach(function (item) {
+        setupHandler(item.node, draggable, dropPoint);
+      });
+      console.log('loaded');
+    }
+  </script>
+</head>
+<body onload="load()">
+  <div id="draggable"></div>
+<table id="menu">
+  <tr>
+    <td>vertical</td>
+    <td>horizontal</td>
+    <td>cross</td>
+    <td>upper left</td>
+    <td>upper right</td>
+    <td>lower right</td>
+    <td>lower left</td>
+    <td>ul lr</td>
+    <td>ur ll</td>
+    <td>blank</td>
+  </tr>
+  <tr>
+    <td>
+      <svg class="vertical" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
+        <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 0 l 0 100 l 34 0 l 0 -100" />
+      </svg>
+    </td>
+
+    <td>
+      <svg class="horizontal" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
+        <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 0 33 l 100 0 l 0 34 l -100 0" />
+      </svg>
+    </td>
+
+    <td>
+      <svg class="cross" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M 33 0 l 0 100 l 34 0 l 0 -100" />
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M 0 33 l 100 0 l 0 34 l -100 0" />
+      </svg>
+    </td>
+
+    <td>
+      <svg class="upper-left" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
+        <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 0 c 0 16.5, -16.5 33, -33 33 l 0 34 c 33 0, 67 -34, 67 -67" />
+      </svg>
+    </td>
+
+    <td>
+      <svg class="upper-right" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
+        <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 0 c 0 33, 34 67, 67 67 l 0 -34 c -16.5 0, -33 -16.5, -33 -33" />
+      </svg>
+    </td>
+
+    <td>
+      <svg class="lower-right" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
+        <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 100 c 0 -33, 34 -67, 67 -67 l 0 34 c -16.5 0, -33 16.5, -33 33" />
+      </svg>
+    </td>
+
+    <td>
+      <svg class="lower-left" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
+        <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 100 c 0 -16.5, -16.5 -33, -33 -33 l 0 -34 c 33 0, 67 34, 67 67" />
+      </svg>
+    </td>
+
+    <td>
+      <svg class="ul-lr" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
+        <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 0 c 0 16.5, -16.5 33, -33 33 l 0 34 c 33 0, 67 -34, 67 -67" />
+        <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 100 c 0 -33, 34 -67, 67 -67 l 0 34 c -16.5 0, -33 16.5, -33 33" />
+      </svg>
+    </td>
+
+    <td>
+      <svg class="ur-ll" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
+        <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 0 c 0 33, 34 67, 67 67 l 0 -34 c -16.5 0, -33 -16.5, -33 -33" />
+        <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 100 c 0 -16.5, -16.5 -33, -33 -33 l 0 -34 c 33 0, 67 34, 67 67" />
+      </svg>
+    </td>
+
+    <td>
+      <svg class="none" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100" />
+
+    </td>
+
+  </tr>
+</table>
+
+
+<div class="grid" id="grid">
+  <div id="dropPoint"></div>
+</div>
+
+</body>
+</html>
