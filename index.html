@@ -23,13 +23,21 @@
       background-color: #99ff99;
       position:absolute;
     }
+    #menu {
+      position:absolute;
+      right: 0;
+      top: 0;
+    }
+    #menu svg, #grid svg, #draggable svg {
+      width: 60px;
+      height: 60px;
+    }
   </style>
   <style id="path-styles"></style>
   <script type="text/javascript">
-    var across = 10;
-    var size = 100;
-    var gridTop = 140;
-    var gridLeft = 8;
+    var across = 15;
+    var size = 60;
+    var gridRect;
     var grid = null;
 
     var items = {
@@ -112,14 +120,15 @@
         clearNode(draggable);
         draggable.appendChild(s);
         draggable.style = "display:block;left:" + (e.pageX - 0.5*size) + "px;top:" + (e.pageY-0.5*size) + "px;";
-        draggable.onmousemove = handleDraggableMove;
+        window.onmousemove = handleDraggableMove;
         draggable.onmouseup = function(e) {
-          draggable.onmousemove = null;
+          window.onmousemove = null;
+
           draggable.style = "display:none;";
           dropPoint.style = "display:none;";
 
-          var gx = Math.floor((e.pageX - gridLeft) / size);
-          var gy = Math.floor((e.pageY - gridTop) / size);
+          var gx = Math.floor((e.pageX - gridRect.left) / size);
+          var gy = Math.floor((e.pageY - gridRect.top) / size);
 
           console.log('gx,gy', gx, gy);
 
@@ -295,13 +304,13 @@
 
     function handleDraggableMove(e) {
       draggable.style = "display:block;left:" + (e.pageX - 0.5*size) + "px;top:" + (e.pageY-0.5*size) + "px;";
-      var gx = Math.floor((e.pageX - gridLeft) / size);
-      var gy = Math.floor((e.pageY - gridTop) / size);
+      var gx = Math.floor((e.pageX - gridRect.left) / size);
+      var gy = Math.floor((e.pageY - gridRect.top) / size);
 
       if (gx < 0 || gx >= across || gy < 0 || gy > across) {
         dropPoint.style = "display:none;";
       } else {
-        dropPoint.style = "width:"+size+"px;height:"+size+"px;display:block;left:"+(gx*100)+"px;top:"+(gy*100)+"px";
+        dropPoint.style = "width:"+size+"px;height:"+size+"px;display:block;left:"+(gx*size)+"px;top:"+(gy*size)+"px";
       }
 
       return false;
@@ -320,6 +329,8 @@
       var draggable = document.getElementById("draggable");
       var dropPoint = document.getElementById("dropPoint");
       grid = document.getElementById("grid");
+      grid.style = "height:" + (size * across) + "px;width:" + (size * across) + "px;";
+      gridRect = grid.getBoundingClientRect();
       Object.values(items).forEach(function (item) {
         setupHandler(item.node, draggable, dropPoint);
       });
@@ -329,84 +340,70 @@
 </head>
 <body onload="load()">
   <div id="draggable"></div>
-<table id="menu">
-  <tr>
-    <td>vertical</td>
-    <td>horizontal</td>
-    <td>cross</td>
-    <td>upper left</td>
-    <td>upper right</td>
-    <td>lower right</td>
-    <td>lower left</td>
-    <td>ul lr</td>
-    <td>ur ll</td>
-    <td>blank</td>
-  </tr>
-  <tr>
-    <td>
+<div id="menu">
+    <div>
       <svg class="vertical" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
         <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 0 l 0 100 l 34 0 l 0 -100" />
       </svg>
-    </td>
+    </div>
 
-    <td>
+    <div>
       <svg class="horizontal" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
         <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 0 33 l 100 0 l 0 34 l -100 0" />
       </svg>
-    </td>
+    </div>
 
-    <td>
+    <div>
       <svg class="cross" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
       <path fill-rule="evenodd" clip-rule="evenodd" d="M 33 0 l 0 100 l 34 0 l 0 -100" />
         <path fill-rule="evenodd" clip-rule="evenodd" d="M 0 33 l 100 0 l 0 34 l -100 0" />
       </svg>
-    </td>
+    </div>
 
-    <td>
+    <div>
       <svg class="upper-left" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
         <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 0 c 0 16.5, -16.5 33, -33 33 l 0 34 c 33 0, 67 -34, 67 -67" />
       </svg>
-    </td>
+    </div>
 
-    <td>
+    <div>
       <svg class="upper-right" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
         <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 0 c 0 33, 34 67, 67 67 l 0 -34 c -16.5 0, -33 -16.5, -33 -33" />
       </svg>
-    </td>
+    </div>
 
-    <td>
+    <div>
       <svg class="lower-right" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
         <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 100 c 0 -33, 34 -67, 67 -67 l 0 34 c -16.5 0, -33 16.5, -33 33" />
       </svg>
-    </td>
+    </div>
 
-    <td>
+    <div>
       <svg class="lower-left" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
         <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 100 c 0 -16.5, -16.5 -33, -33 -33 l 0 -34 c 33 0, 67 34, 67 67" />
       </svg>
-    </td>
+    </div>
 
-    <td>
+    <div>
       <svg class="ul-lr" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
         <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 0 c 0 16.5, -16.5 33, -33 33 l 0 34 c 33 0, 67 -34, 67 -67" />
         <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 100 c 0 -33, 34 -67, 67 -67 l 0 34 c -16.5 0, -33 16.5, -33 33" />
       </svg>
-    </td>
+    </div>
 
-    <td>
+    <div>
       <svg class="ur-ll" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100">
         <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 0 c 0 33, 34 67, 67 67 l 0 -34 c -16.5 0, -33 -16.5, -33 -33" />
         <path fill-rule="evenodd" clip-rule="evenodd" fill="#231F20" d="M 33 100 c 0 -16.5, -16.5 -33, -33 -33 l 0 -34 c 33 0, 67 34, 67 67" />
       </svg>
-    </td>
+    </div>
 
-    <td>
+    <div>
       <svg class="none" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" version="1.1" viewBox="0 0 100 100" />
 
-    </td>
+    </div>
 
-  </tr>
-</table>
+</div>
 
 
 <div class="grid" id="grid">
