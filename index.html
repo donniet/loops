@@ -41,7 +41,7 @@
       'horizontal': {
         paths: 1,
         left: 1,
-        bottom: 1
+        right: 1
       },
       'cross': {
         paths: 2,
@@ -82,7 +82,7 @@
         top: 1,
         right: 1,
         bottom: 2,
-        left: 1
+        left: 2
       },
       'none': {
         paths: 0,
@@ -216,10 +216,12 @@
           if (before && typeof before.right_path == 'number' && typeof l.left_path == 'number') {
             // rel[l.left_path] = before.right_path;
             classes[before.right_path][l.left_path] = true;
+            // classMap[l.left_path] = before.right_path;
           }
           if (above && typeof above.bottom_path == 'number' && typeof l.top_path == 'number') {
             // rel[l.top_path] = above.bottom_path;
             classes[above.bottom_path][l.top_path] = true;
+            // classMap[l.top_path] = above.bottom_path;
           }
           above = l;
         }
@@ -263,12 +265,17 @@
       console.log('classes', classes);
       console.log('classMap', classMap);
 
+      addStyles(paths, classes, classMap);
+    }
+
+    function addStyles(paths, classes, classMap) {
       var st = "";
       var colors = Object.keys(classes).reduce((s, k) => {
         var r = Math.floor(Math.random() * 256);
         var g = Math.floor(Math.random() * 256);
         var b = Math.floor(Math.random() * 256);
         s[k] = 'rgb('+r+','+g+','+b+')';
+        if (typeof s == 'undefined') console.log('undefined color: ', s, k, r, g, b);
         return s;
       }, {});
 
